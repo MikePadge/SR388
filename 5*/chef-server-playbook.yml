@@ -1,0 +1,20 @@
+---
+
+- name: Chef Server Common Tasks
+  hosts: all
+  become: yes
+# consider versioning server with org pull for BP
+  tags:
+    - prod
+    - dev
+
+  roles:
+    - role: common
+
+  vars_files:
+    - settings.yml
+
+- name: Dev Env Tasks
+  hosts: vagrant
+  become: yes
+

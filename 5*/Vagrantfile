@@ -1,0 +1,63 @@
+# Defines our Vagrant environment
+#
+# -*- mode: ruby -*-
+# vim: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  # Chef Server
+  config.vm.define :chef_server do |cs|
+    # https://github.com/chef/bento
+    cs.vm.box = 'bento/ubuntu-16.04'
+    cs.vm.hostname = 'chef-server'
+    cs.vm.network :private_network, ip: "10.80.0.8"
+    # Needs Other Provider vars
+    cs.vm.provider 'virtualbox' do |v|
+        v.memory = "4096"
+        v.cpus = '2'
+        v.customize ['modifyvm', :id, '--ioapic', 'on']
+    end
+
+    cs.vm.provision 'ansible' do |a|
+        a.playbook = 'cs.yml'
+        # not completely sure if necessary
+        a.limit = 'vagrant'
+        a.inventory_path = 'hosts'
+    end
+
+    # This network is for later vars when the default var file is introduced
+    #cs.vm.network :private_network, ip: vcfg.fetch('vagrant_ip'), hostsupdater: 'skip'
+    # once the admin box is added, this will need to map to /etc/hosts of the vm
+    # so the vm's browser can access the fqdn of the chef server
+    #main_hostname, *hostnames = site_hosts.map { |host| host['canonical'] }
+    # needs bridge sysinfo
+    # and check if vagrant vpc can access on private network
+    # chef_config.vm.network "public_network", ip: "10.80.0.1", bridge: "en0: Wi-Fi (AirPort)"
+
+    # letsencrypt ansible provisioner
+  end
+
+  # Jenkins Server
+  config.vm.define :jenkins_server do |js|
+    js.vm.box = 'bento/ubuntu-16.04'
+    js.vm.hostname = 'jenkins'
+    js.vm.network :private_network, ip: '10.80.0.9'
+    js.ssh.insert_key = false
+    js.vm.synced_folder '.', '/vagrant', disabled: true
+
+    js.vm.provider :virtualbox do |v|
+      v.name = 'jenkins'
+      v.memory = '1024'
+      v.cpus = 1
+      # this may mess with the admin box since it needs to have its hosts
+      # edited directly
+      v.customize ['modifyvm', :id, '--natdnshostresolver1', 'on']
+      v.customize ['modifyvm', :id, '--ioapic', 'on']
+    end
+
+  js.vm.provision 'ansible' do |a|
+    a.playbook = 'jenkins-server-playbook.yml'
+    # can I just list this config as the only host?
+    a.inventory_path = 'inventory/jenkins'
+
+end
